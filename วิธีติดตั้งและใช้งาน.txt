@@ -1,0 +1,38 @@
+วิธีติดตั้งและใช้งาน
+1. ติดตั้ง MySQL และสร้างฐานข้อมูล
+
+mysql -u root -p < backend/schema.sql
+2. แก้รหัสผ่าน MySQL
+เปิด backend/db.js → เปลี่ยน your_password เป็น password จริง
+
+3. ติดตั้งและรัน Backend
+
+cd backend
+npm install
+npm start
+# → รันที่ http://localhost:3001
+4. รัน Frontend (terminal อีกอัน)
+
+cd ..          # กลับไปโฟลเดอร์ accounting-dashboard
+npm start
+# → รันที่ http://localhost:3000
+5. ผู้ใช้คนอื่นในวง LAN เข้าใช้งานได้
+เปิด backend/server.js:10 เปลี่ยน origin เป็น IP เครื่องเซิร์ฟเวอร์ และ src/utils/api.js:2 เปลี่ยน localhost เป็น IP เดียวกัน
+
+==========================================================
+วิธีเริ่มใช้งาน (ต้องทำทุกครั้ง)
+เปิด 2 terminal แยกกัน:
+
+Terminal 1 — Backend:
+
+
+cd C:\Users\IM-DENNAPA\Desktop\accounting-dashboard\backend
+node server.js
+ควรเห็น: ✅ Backend API รันที่ http://localhost:3001
+
+Terminal 2 — Frontend:
+
+
+cd C:\Users\IM-DENNAPA\Desktop\accounting-dashboard
+npm start
+เมื่อคีย์ข้อมูลผ่าน app ทุก action (เพิ่ม/แก้ไข/ลบ) จะถูกส่งไปเก็บใน MySQL accounting_db ทันทีครับ

@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: accounting_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: accounting_db
+      MYSQL_USER: vespazeza
+      MYSQL_PASSWORD: 64120482
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./features.sql:/docker-entrypoint-initdb.d/02_features.sql:ro
+    ports:
+      - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: bmsaccout/accounting-backend:latest
+    container_name: accounting_backend
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: vespazeza
+      DB_PASSWORD: 64120482
+      DB_NAME: accounting_db
+      FRONTEND_URL: http://localhost:6555   # เปลี่ยนเป็น domain จริงเมื่อ deploy บน cloud
+      SESSION_SECRET: accounting_secret_key_2024
+    ports:
+      - "6001:6001"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: bmsaccout/accounting-frontend:latest
+    container_name: accounting_frontend
+    restart: unless-stopped
+    ports:
+      - "6555:80"
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

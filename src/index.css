@@ -1,0 +1,13 @@
+/* สีแถวตามสถานะในตาราง detail */
+.row-done td {
+  background-color: #f6ffed !important;  /* เขียวอ่อน */
+}
+.row-notdone td {
+  background-color: #fff2f0 !important;  /* แดงอ่อน */
+}
+.row-done:hover td {
+  background-color: #d9f7be !important;
+}
+.row-notdone:hover td {
+  background-color: #ffccc7 !important;
+}
