@@ -329,11 +329,13 @@ app.get('/api/testcases', requireAuth, async (req, res) => {
       key:          r.key,
       tcNo:         r.tc_no,
       featureKey:   r.feature_key,
+      systemName:   r.system_name,
       detailIndex:  r.detail_index,
       title:        r.title,
       precondition: r.precondition,
       steps:        typeof r.steps === 'string' ? JSON.parse(r.steps) : (r.steps || []),
       actualResult: r.actual_result,
+      testUrl:      r.test_url,
       status:       r.status,
       tester:       r.tester,
       testDate:     r.test_date,
@@ -355,12 +357,12 @@ app.get('/api/testcases/next-no', requireAuth, async (req, res) => {
 
 app.post('/api/testcases', requireAuth, async (req, res) => {
   try {
-    const { key, tcNo, featureKey, detailIndex, title, precondition, steps, actualResult, status, tester, testDate, remark } = req.body;
+    const { key, tcNo, featureKey, systemName, detailIndex, title, precondition, steps, actualResult, testUrl, status, tester, testDate, remark } = req.body;
     await db.execute(
-      `INSERT INTO test_cases (\`key\`, tc_no, feature_key, detail_index, title, precondition, steps, actual_result, status, tester, test_date, remark)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [key, tcNo, featureKey || null, detailIndex ?? 0, title, precondition || null,
-       JSON.stringify(steps || []), actualResult || null,
+      `INSERT INTO test_cases (\`key\`, tc_no, feature_key, system_name, detail_index, title, precondition, steps, actual_result, test_url, status, tester, test_date, remark)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [key, tcNo, featureKey || null, systemName || null, detailIndex ?? 0, title, precondition || null,
+       JSON.stringify(steps || []), actualResult || null, testUrl || null,
        status || 'pending', tester || null, testDate || null, remark || null]
     );
     res.json({ success: true, key });
@@ -369,12 +371,12 @@ app.post('/api/testcases', requireAuth, async (req, res) => {
 
 app.put('/api/testcases/:key', requireAuth, async (req, res) => {
   try {
-    const { tcNo, featureKey, detailIndex, title, precondition, steps, actualResult, status, tester, testDate, remark } = req.body;
+    const { tcNo, featureKey, systemName, detailIndex, title, precondition, steps, actualResult, testUrl, status, tester, testDate, remark } = req.body;
     await db.execute(
-      `UPDATE test_cases SET tc_no=?, feature_key=?, detail_index=?, title=?, precondition=?,
-       steps=?, actual_result=?, status=?, tester=?, test_date=?, remark=? WHERE \`key\`=?`,
-      [tcNo, featureKey || null, detailIndex ?? 0, title, precondition || null,
-       JSON.stringify(steps || []), actualResult || null,
+      `UPDATE test_cases SET tc_no=?, feature_key=?, system_name=?, detail_index=?, title=?, precondition=?,
+       steps=?, actual_result=?, test_url=?, status=?, tester=?, test_date=?, remark=? WHERE \`key\`=?`,
+      [tcNo, featureKey || null, systemName || null, detailIndex ?? 0, title, precondition || null,
+       JSON.stringify(steps || []), actualResult || null, testUrl || null,
        status || 'pending', tester || null, testDate || null, remark || null, req.params.key]
     );
     res.json({ success: true });
