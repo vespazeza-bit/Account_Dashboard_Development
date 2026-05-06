@@ -1,6 +1,10 @@
-// Central API client — ใช้ hostname เดียวกับที่เปิด browser เพื่อรองรับทั้ง localhost และ network IP
-const BACKEND_HOST = window.location.hostname;
-const BASE = `http://${BACKEND_HOST}:6001/api`;
+// Central API client
+// - dev (localhost:3000) → ยิงตรงไป backend port 6001
+// - production (domain หรือ docker) → ใช้ relative /api ให้ nginx proxy จัดการ
+const isDev = window.location.port === '3000';
+const BASE  = isDev
+  ? `http://${window.location.hostname}:6001/api`
+  : '/api';
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
