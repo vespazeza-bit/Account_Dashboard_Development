@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Card, Row, Col, Progress, Tag, Table, Empty, Statistic, Spin, message, Tooltip } from 'antd';
 import {
   CheckCircleOutlined, SyncOutlined, ClockCircleOutlined, ProjectOutlined,
-  CalendarOutlined, FlagOutlined, RocketOutlined,
+  CalendarOutlined, CheckOutlined, HourglassOutlined,
 } from '@ant-design/icons';
 import { Doughnut, Bar } from 'react-chartjs-2';
 import {
@@ -18,176 +18,116 @@ const STATUS_TAG   = { done: 'success',  inprogress: 'processing', notstarted: '
 const STATUS_LABEL = { done: 'เสร็จ', inprogress: 'ระหว่างดำเนินการ', notstarted: 'ยังไม่เริ่ม' };
 
 const STATUS_COLOR = { done: '#52c41a', inprogress: '#1890ff', notstarted: '#bfbfbf' };
-const DEADLINE     = dayjs('2026-04-24');
-const INSTALL_DATE = dayjs('2026-04-27');
 
 function ProjectTimeline({ phases }) {
   if (!phases || phases.length === 0) return null;
 
-  const allStarts = phases.map(p => dayjs(p.minStart));
-  const minDate   = allStarts.reduce((a, b) => a.isBefore(b) ? a : b);
-  const maxDate   = INSTALL_DATE;
-  const totalDays = maxDate.diff(minDate, 'day') || 1;
-
-  const getPct   = (date) => Math.max(0, Math.min(100, dayjs(date).diff(minDate, 'day') / totalDays * 100));
-  const getWidth = (s, e) => Math.max(2, getPct(e) - getPct(s));
-
-  const deadlinePct = getPct(DEADLINE);
-  const installPct  = getPct(INSTALL_DATE);
+  const NAVY = '#1a1f5e';
+  const GOLD = '#c9a866';
+  const GRAY = '#d9d9d9';
 
   // สถานะโดยรวมของแต่ละเฟส
   const phaseStatus = (p) => p.percentDone === 100 ? 'done' : p.inprogress > 0 ? 'inprogress' : 'notstarted';
 
+  // แยก "เฟส N : ชื่อ" → เลขเฟส + ชื่อหลัง :
+  const parsePhase = (raw) => {
+    const m = String(raw || '').match(/^\s*เฟส\s*(\d+)\s*[:：]\s*(.*)$/);
+    if (m) return { num: m[1], title: m[2].trim() };
+    const m2 = String(raw || '').split(/\s*[:：]\s*/);
+    if (m2.length > 1) return { num: null, title: m2.slice(1).join(':').trim() };
+    return { num: null, title: String(raw || '').trim() };
+  };
+
   return (
     <Card
-      title={<span><CalendarOutlined style={{ color: '#1a1f5e', marginRight: 8 }} />Project Timeline</span>}
+      title={<span><CalendarOutlined style={{ color: NAVY, marginRight: 8 }} />Project Timeline</span>}
       style={{ marginTop: 24 }}
     >
-      {/* legend */}
-      <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
-        {[
-          { color: '#52c41a', label: 'เสร็จแล้ว' },
-          { color: '#1890ff', label: 'ระหว่างดำเนินการ' },
-          { color: '#bfbfbf', label: 'ยังไม่เริ่ม' },
-          { color: '#ff4d4f', label: `กำหนดส่ง ${DEADLINE.format('DD/MM/YYYY')}` },
-          { color: '#fa8c16', label: `ติดตั้งระบบ ${INSTALL_DATE.format('DD/MM/YYYY')}` },
-        ].map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 3, background: item.color }} />
-            <span style={{ fontSize: 12, color: '#555' }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* แกนเวลา — บรรทัดเดียว label สลับบน/ล่าง */}
-      <div style={{ position: 'relative', padding: '100px 0 100px' }}>
-
-        {/* label บน (เฟสคู่) */}
+      <div style={{ display: 'flex', alignItems: 'stretch', overflowX: 'auto', padding: '8px 0' }}>
         {phases.map((p, i) => {
-          if (i % 2 !== 0) return null;
-          const midPct = (getPct(p.minStart) + getPct(p.maxEnd)) / 2;
-          const color  = STATUS_COLOR[phaseStatus(p)];
+          const status       = phaseStatus(p);
+          const isDone       = status === 'done';
+          const isInProgress = status === 'inprogress';
+          const nextDone     = i < phases.length - 1 && phaseStatus(phases[i + 1]) === 'done';
+
+          // สีของวงกลม
+          const circleBorder = isDone ? NAVY : isInProgress ? GOLD : GRAY;
+          const circleFill   = isDone ? NAVY : '#fff';
+
+          // สีของเส้นเชื่อม
+          const leftLineColor  = i > 0 && (isDone || phaseStatus(phases[i - 1]) === 'done') ? NAVY : GRAY;
+          const rightLineColor = i < phases.length - 1 && (isDone || nextDone) ? NAVY : GRAY;
+
+          const { num, title } = parsePhase(p.phase);
+          const phaseNum = num || String(i + 1);
+
           return (
-            <div key={p.phase + '_top'} style={{
-              position: 'absolute', left: `${midPct}%`, bottom: 'calc(50% + 22px)',
-              transform: 'translateX(-50%)', textAlign: 'center', zIndex: 5,
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1f5e', whiteSpace: 'nowrap' }}>{p.phase}</div>
-              <div style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
-                {dayjs(p.minStart).format('DD MMM YY')}–{dayjs(p.maxEnd).format('DD MMM YY')}
+            <Tooltip key={p.phase} title={
+              <div>
+                <div><strong>{p.phase}</strong></div>
+                <div>{dayjs(p.minStart).format('DD/MM/YYYY')} – {dayjs(p.maxEnd).format('DD/MM/YYYY')}</div>
+                <div>ความคืบหน้า: {p.percentDone}% ({p.done}/{p.total} งาน)</div>
+                <div>เสร็จ {p.done} • ระหว่างดำเนินการ {p.inprogress} • ยังไม่เริ่ม {p.notstarted}</div>
               </div>
-              <Tag color={phaseStatus(p) === 'done' ? 'success' : phaseStatus(p) === 'inprogress' ? 'processing' : 'default'}
-                style={{ fontSize: 10, marginTop: 2 }}>{p.percentDone}%</Tag>
-              {/* เส้นเชื่อม */}
-              <div style={{ width: 2, height: 16, background: color, margin: '4px auto 0' }} />
-              {/* วงกลม */}
-              <div style={{
-                width: 16, height: 16, borderRadius: '50%',
-                background: color, border: '2px solid #fff',
-                boxShadow: `0 0 0 2px ${color}`,
-                margin: '0 auto',
-              }} />
-            </div>
-          );
-        })}
-
-        {/* label ล่าง (เฟสคี่) */}
-        {phases.map((p, i) => {
-          if (i % 2 === 0) return null;
-          const midPct = (getPct(p.minStart) + getPct(p.maxEnd)) / 2;
-          const color  = STATUS_COLOR[phaseStatus(p)];
-          return (
-            <div key={p.phase + '_bot'} style={{
-              position: 'absolute', left: `${midPct}%`, top: 'calc(50% + 22px)',
-              transform: 'translateX(-50%)', textAlign: 'center', zIndex: 5,
-            }}>
-              {/* วงกลม */}
-              <div style={{
-                width: 16, height: 16, borderRadius: '50%',
-                background: color, border: '2px solid #fff',
-                boxShadow: `0 0 0 2px ${color}`,
-                margin: '0 auto',
-              }} />
-              {/* เส้นเชื่อม */}
-              <div style={{ width: 2, height: 16, background: color, margin: '0 auto 4px' }} />
-              <div style={{ fontWeight: 700, fontSize: 12, color: '#1a1f5e', whiteSpace: 'nowrap' }}>{p.phase}</div>
-              <div style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
-                {dayjs(p.minStart).format('DD MMM YY')}–{dayjs(p.maxEnd).format('DD MMM YY')}
-              </div>
-              <Tag color={phaseStatus(p) === 'done' ? 'success' : phaseStatus(p) === 'inprogress' ? 'processing' : 'default'}
-                style={{ fontSize: 10, marginTop: 2 }}>{p.percentDone}%</Tag>
-            </div>
-          );
-        })}
-
-        {/* แถบหลัก 1 บรรทัด */}
-        <div style={{ position: 'relative', height: 44 }}>
-          {/* track background */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            background: '#e8e8e8', borderRadius: 22,
-          }} />
-
-          {/* แต่ละเฟส */}
-          {phases.map((p) => {
-            const left  = getPct(p.minStart);
-            const width = getWidth(p.minStart, p.maxEnd);
-            const color = STATUS_COLOR[phaseStatus(p)];
-            return (
-              <Tooltip key={p.phase} title={
-                <div>
-                  <div><strong>{p.phase}</strong></div>
-                  <div>{dayjs(p.minStart).format('DD/MM/YYYY')} – {dayjs(p.maxEnd).format('DD/MM/YYYY')}</div>
-                  <div>ความคืบหน้า: {p.percentDone}%</div>
-                  <div>{STATUS_LABEL[phaseStatus(p)]}</div>
+            }>
+              <div style={{ flex: 1, minWidth: 110, textAlign: 'center', padding: '0 4px' }}>
+                {/* PHASE N */}
+                <div style={{ color: GOLD, fontWeight: 700, fontSize: 13, letterSpacing: 1, marginBottom: 4 }}>
+                  PHASE {phaseNum}
                 </div>
-              }>
+                {/* ชื่อเฟส (ตัด "เฟส N :" ออก) */}
                 <div style={{
-                  position: 'absolute',
-                  left: `${left}%`, width: `${width}%`,
-                  top: 2, height: 40,
-                  background: color, borderRadius: 20,
-                  opacity: 0.85, cursor: 'pointer',
-                  border: '2px solid rgba(255,255,255,0.5)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  overflow: 'hidden',
+                  color: NAVY, fontWeight: 700, fontSize: 13, lineHeight: 1.3,
+                  minHeight: 40, padding: '0 4px',
                 }}>
-                  <span style={{
-                    color: '#000', fontSize: 11, fontWeight: 700,
-                    whiteSpace: 'nowrap', padding: '0 10px',
-                    overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
-                  }}>{p.phase}</span>
+                  {title}
                 </div>
-              </Tooltip>
-            );
-          })}
 
-          {/* เส้น deadline */}
-          <div style={{
-            position: 'absolute', left: `${deadlinePct}%`,
-            top: -8, height: 60, width: 2,
-            background: '#ff4d4f', zIndex: 10,
-          }}>
-            <div style={{
-              position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)',
-              background: '#ff4d4f', color: '#fff', fontSize: 10, fontWeight: 700,
-              padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-            }}><FlagOutlined /> {DEADLINE.format('DD/MM/YY')}</div>
-          </div>
+                {/* เส้น + วงกลม */}
+                <div style={{ position: 'relative', height: 30, marginTop: 10 }}>
+                  {/* เส้นเชื่อมซ้าย */}
+                  {i > 0 && (
+                    <div style={{
+                      position: 'absolute', left: 0, right: '50%', top: '50%',
+                      height: 2, background: leftLineColor, transform: 'translateY(-50%)',
+                    }} />
+                  )}
+                  {/* เส้นเชื่อมขวา */}
+                  {i < phases.length - 1 && (
+                    <div style={{
+                      position: 'absolute', left: '50%', right: 0, top: '50%',
+                      height: 2, background: rightLineColor, transform: 'translateY(-50%)',
+                    }} />
+                  )}
+                  {/* วงกลม */}
+                  <div style={{
+                    position: 'absolute', left: '50%', top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 24, height: 24, borderRadius: '50%',
+                    background: circleFill,
+                    border: `4px solid ${circleBorder}`,
+                    boxSizing: 'border-box',
+                    zIndex: 2,
+                  }} />
+                </div>
 
-          {/* เส้น install */}
-          <div style={{
-            position: 'absolute', left: `${installPct}%`,
-            top: -8, height: 60, width: 2,
-            background: '#fa8c16', zIndex: 10,
-          }}>
-            <div style={{
-              position: 'absolute', top: -22, left: '50%', transform: 'translateX(-50%)',
-              background: '#fa8c16', color: '#fff', fontSize: 10, fontWeight: 700,
-              padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap',
-            }}><RocketOutlined /> {INSTALL_DATE.format('DD/MM/YY')}</div>
-          </div>
-        </div>
+                {/* สถานะ */}
+                <div style={{ fontSize: 12, color: '#666', marginTop: 10 }}>
+                  {isDone       && <><CheckOutlined style={{ color: NAVY }} /> เสร็จแล้ว</>}
+                  {isInProgress && <><HourglassOutlined style={{ color: GOLD }} /> ดำเนินการ</>}
+                  {!isDone && !isInProgress && <><ClockCircleOutlined style={{ color: GRAY }} /> ยังไม่เริ่ม</>}
+                </div>
+                {/* % */}
+                <div style={{
+                  fontSize: 14, fontWeight: 700, color: NAVY,
+                  textDecoration: 'underline', marginTop: 4,
+                }}>
+                  {p.percentDone}%
+                </div>
+              </div>
+            </Tooltip>
+          );
+        })}
       </div>
 
       {/* ตารางสรุปเฟส */}
@@ -232,29 +172,6 @@ function ProjectTimeline({ phases }) {
         </table>
       </div>
 
-      {/* กล่องข้อมูลสำคัญ */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 20, flexWrap: 'wrap' }}>
-        <div style={{
-          flex: 1, minWidth: 200, background: '#fff2f0', border: '1px solid #ffccc7',
-          borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <FlagOutlined style={{ color: '#ff4d4f', fontSize: 20 }} />
-          <div>
-            <div style={{ fontWeight: 700, color: '#cf1322', fontSize: 14 }}>กำหนดส่งระบบ</div>
-            <div style={{ color: '#555', fontSize: 13 }}>{DEADLINE.format('DD/MM/YYYY')} ({DEADLINE.diff(dayjs(), 'day')} วันที่เหลือ)</div>
-          </div>
-        </div>
-        <div style={{
-          flex: 1, minWidth: 200, background: '#fff7e6', border: '1px solid #ffd591',
-          borderRadius: 8, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <RocketOutlined style={{ color: '#fa8c16', fontSize: 20 }} />
-          <div>
-            <div style={{ fontWeight: 700, color: '#d46b08', fontSize: 14 }}>ติดตั้งระบบ รพ.</div>
-            <div style={{ color: '#555', fontSize: 13 }}>{INSTALL_DATE.format('DD/MM/YYYY')} ({INSTALL_DATE.diff(dayjs(), 'day')} วันที่เหลือ)</div>
-          </div>
-        </div>
-      </div>
     </Card>
   );
 }
